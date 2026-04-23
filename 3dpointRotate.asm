@@ -6,7 +6,7 @@
   
   
   
-  void Rotate3d    (point3d_t *this, point3d_t that) { 
+void Rotate3d    (point3d_t *this, point3d_t that) { 
 
   point3d_t temp;
   
@@ -26,18 +26,123 @@
    this->x = temp.x;
 }
 
+
+//------------------------------------------------------------------------------------
+
+// pseudo code for assembler translation 
+
+// 2d rotation  
+
+r2d(theta, a, b) {  
+   ct = cos128(theta);
+   st = sin128(theta);
+   temp  = (a * ct) - (b * st);
+   b = (a * st) + (b * ct)/128;
+   a = temp/128;
+}
+
+// 3d rotation
+void Rotate3d    ({this_x, this_y, this_z}, {theta_x, theta_y, theta_z}) { 
+  
+  // x rotation
+   r2d(theta_x, this_y, this_z);  
+       
+  // y rotation
+   r2d(theta_y, this_z, this_z);
+        
+  // z rotation
+   r2d(theta_z, this_x, this_y);
+   
+}
   
   
   
   
   
-  
-  
-  
+              
   ; use XY scale of 64, Z scale of 1, and Z offset of -5
   ; XY offset of 8
   
   
+  /////////////////////////////////////////////////////////////////////////////////
+  
+  2dRot: ; set up with    theta, a, b
+                
+   ; sint = sinTbl[that_x];
+   LD   A,  (theta)
+   ADD  #sinTbl_low
+   LD   L, A
+   LD   A, #0
+   ADC  #sinTbl_high
+   LD   H, A
+   
+   LD   A,(HL)
+   LD   (sint), A
+   
+   ; work out the cos(t) table offset (for non-aligned tables)  
+   ; cost = sinTbl[128+that_x]; // cos/sin x
+   LD   A,  (theta)
+   ADD  #128
+   ; may need CLC here
+   ADD  #sinTbl_low
+   LD   L, A
+   LD   A, #0
+   ADC  #sinTbl_high
+   LD   H, A
+   
+   LD   A,(HL)
+   LD  (cost), A         
+  
+   ;----------- do multiplications via "S8S8toS16Mult" A * B -> HL----------
+   
+   ; eq1 = (a * cost);
+   ; LD  A, (cost)
+   LD    B, (a)
+   CALL  S8S8toS16Mult
+   PUSH  HL
+   
+   ; eq2 = (b * sint);
+   LD    A, (sint)
+   LD    B, (b)
+   CALL  S8S8toS16Mult
+   POP   DE
+      
+   ; eq1 -= eq2;   
+   SBC HL, DE
+      
+   ; temp  = eq1 / 128
+   SLA  L
+   RL   H
+   LD   (temp), H
+   
+   ; --   
+   
+   ;eq1 = (a * sint);
+   LD A, (a)
+   LD B, (sint)
+   CALL  S8S8toS16Mult
+   PUSH  HL
+   
+   ;eq2 = (b * cost);
+   LD A, (b)
+   LD B, (cost)
+   CALL  S8S8toS16Mult
+   
+   ;eq1 += eq2;
+   POP   DE      
+   ADD   HL, DE
+    
+   ;b  = eq1 / 128;   
+   SLA  L
+   RL   H
+   LD   (b), H
+   
+   ;a = temp;   
+   LD   A, (temp)
+   LD   (a), A
+
+   RET      
+         
   
   
   
@@ -47,8 +152,7 @@
   
   
   
-  
-  
+  //////////////////////////////////////////////////////////////////////////////
   
   
  // sinTbl and cosTbl values are multiplied by 128
@@ -144,21 +248,81 @@
          
          
          
-         
-         
-  // y rotation
-   cost = sinTbl[128+that_y]; // cos/sin y
-   sint = sinTbl[that_y];  
   
-   eq1 = (this_z * cost);
-   eq2 = (this_x * sint);
-   temp = eq1 - eq2;
+  
+  
+  
+  
+  
+  
+  
+  
+    // y rotation
+     ; cost = sinTbl[128+that_y]; // cos/sin y
+   LD   A,  (that_y)
+   ADD  #sinTbl_low
+   LD   L, A
+   LD   A, #0
+   ADC  #sinTbl_high
+   LD   H, A
    
-   eq1 = (this_z * sint);
-   eq2 = (this_x * cost);
-   this_x = eq1 + eq2;
+   LD   A,(HL)
+   LD   (sint), A
+   
+   ; work out the cos(t) table offset (for non-aligned tables)  
+   ; sint = sinTbl[that_y]; 
+   LD   A,  (that_y)
+   ADD  #128
+   ADD  #sinTbl_low
+   LD   L, A
+   LD   A, #0
+   ADC  #sinTbl_high
+   LD   H, A
+   
+   LD   A,(HL)
+   LD  (cost), A    
+                     
+   ;eq1 = (this_z * cost);
+   LD    B, (this_z)
+   CALL  S8S8toS16Mult
+   PUSH  HL 
+   
+   
+   ;eq2 = (this_x * sint);
+   LD    A, (sint)
+   LD    B, (this_x)
+   CALL  S8S8toS16Mult
+   POP   DE   
+
+   ;temp = (eq1 - eq2)/2;
+   SBC HL, DE
+   SRA  H
+   RR   L
+   LD   (temp), L   
+      
+   ;eq1 = (this_z * sint);
+   LD A, (this_z)
+   LD B, (sint)
+   CALL  S8S8toS16Mult
+   PUSH  HL   
+      
+   ;eq2 = (this_x * cost);
+   LD A, (this_x)
+   LD B, (cost)
+   CALL  S8S8toS16Mult   
+         
+   ;this_x = (eq1 + eq2)/2;
+   
+   
    
    this_z = temp;
+     
+     
+     
+     
+     
+     
+     
      
   // z rotation
    cost = sinTbl[128+that_z]; // cos/sin y
