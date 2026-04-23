@@ -48,7 +48,7 @@ void Rotate3d    ({this_x, this_y, this_z}, {theta_x, theta_y, theta_z}) {
    r2d(theta_x, this_y, this_z);  
        
   // y rotation
-   r2d(theta_y, this_z, this_z);
+   r2d(theta_y, this_z, this_x);
         
   // z rotation
    r2d(theta_z, this_x, this_y);
@@ -65,6 +65,11 @@ void Rotate3d    ({this_x, this_y, this_z}, {theta_x, theta_y, theta_z}) {
   
   
   /////////////////////////////////////////////////////////////////////////////////
+  theta: .db 0x00
+  a:     .db 0x00
+  b:     .db 0x00
+  sint:  .db 0x00
+  cost:  .db 0x00
   
   2dRot: ; set up with    theta, a, b
                 
@@ -98,13 +103,13 @@ void Rotate3d    ({this_x, this_y, this_z}, {theta_x, theta_y, theta_z}) {
    ; eq1 = (a * cost);
    ; LD  A, (cost)
    LD    B, (a)
-   CALL  S8S8toS16Mult
+   CALL  S8S8toS16Mult ; HL = A*B
    PUSH  HL
    
    ; eq2 = (b * sint);
    LD    A, (sint)
    LD    B, (b)
-   CALL  S8S8toS16Mult
+   CALL  S8S8toS16Mult; HL = A*B
    POP   DE
       
    ; eq1 -= eq2;   
@@ -120,13 +125,13 @@ void Rotate3d    ({this_x, this_y, this_z}, {theta_x, theta_y, theta_z}) {
    ;eq1 = (a * sint);
    LD A, (a)
    LD B, (sint)
-   CALL  S8S8toS16Mult
+   CALL  S8S8toS16Mult; HL = A*B
    PUSH  HL
    
    ;eq2 = (b * cost);
    LD A, (b)
    LD B, (cost)
-   CALL  S8S8toS16Mult
+   CALL  S8S8toS16Mult; HL = A*B
    
    ;eq1 += eq2;
    POP   DE      
@@ -135,14 +140,77 @@ void Rotate3d    ({this_x, this_y, this_z}, {theta_x, theta_y, theta_z}) {
    ;b  = eq1 / 128;   
    SLA  L
    RL   H
-   LD   (b), H
+;   LD   (b), H
    
    ;a = temp;   
-   LD   A, (temp)
-   LD   (a), A
+   LD   L, (temp)
+;   LD   (a), L
 
-   RET      
+   RET  ; returns with (a) in L, and (b) in H 
          
+  
+  
+ ; set up with    theta_x, theta_y, theta_z, this_x, this_y, this_z
+3dRot: 
+ 
+ ; r2d(theta_x, this_y, this_z);
+  LD   A,(this_y)  
+  LD   (a), A
+  
+  LD   A,(this_z)
+  LD   (b), A
+  
+  LD   A,(theta_x)   
+  LD   (theta), A  
+  
+  CALL 2dRot; returns with rotated (a) in L, and (b) in H 
+  
+  
+  LD   (this_y), L  ;(L = a = this_y) 
+  
+  LD   (a), H       ;(H = b = this_z)
+    
+  ; r2d(theta_y, this_z, this_x); 
+  LD   A,(this_x)
+  LD   (b), A
+  
+  LD   A,(theta_y)
+  LD   (theta),A  
+  
+  CALL 2dRot  ; returns with rotated (a) in L, and (b) in H 
+  
+  
+  LD  (this_z), L ; (L = a = this_z)
+  
+  LD  (a), H      ; (H = b = this_x)
+ 
+  ; r2d(theta_z, this_x, this_y);
+  
+  LD   A,(this_y)
+  LD   (b), A
+  
+  LD   A,(theta_z) 
+  LD   (theta),A  
+  
+  CALL 2dRot  ; returns with rotated (a) in L, and (b) in H   
+  
+  LD   (this_x), L ; (L = a = this_x)
+  LD   (this_y), H ; (H = b = this_y)
+  
+  RET
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   
