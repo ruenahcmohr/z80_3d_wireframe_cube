@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sine Table Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: monospace;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    .root {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 4px;
+    }
+
+    .toolbar h1 {
+      font-family: sans-serif;
+      font-size: 16px;
+      font-weight: 500;
+      color: #e0e0e0;
+      flex: 1;
+    }
+
+    button {
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 16px;
+      transition: background 0.15s;
+    }
+
+    .run-btn {
+      background: #2d5a8e;
+      border: 1px solid #4a7ab5;
+      color: #e0e0e0;
+    }
+    .run-btn:hover { background: #3a6fa3; }
+    .run-btn:active { transform: scale(0.98); }
+
+    .clear-btn {
+      background: transparent;
+      border: 1px solid #444;
+      color: #aaa;
+    }
+    .clear-btn:hover { background: #2a2a2a; }
+
+    .dl-btn {
+      background: transparent;
+      border: 1px solid #444;
+      color: #aaa;
+      font-size: 12px;
+      padding: 4px 10px;
+    }
+    .dl-btn:hover { background: #2a2a2a; color: #ccc; }
+    .dl-btn:disabled { opacity: 0.35; cursor: default; }
+
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #333;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel-full { grid-column: 1 / -1; }
+
+    .panel-label {
+      font-family: sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      color: #888;
+      padding: 5px 12px;
+      background: #252525;
+      border-bottom: 1px solid #333;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel-label span { flex: 1; }
+
+    textarea {
+      flex: 1;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      border: none;
+      outline: none;
+      padding: 10px 12px;
+      resize: vertical;
+      min-height: 240px;
+      tab-size: 2;
+    }
+
+    textarea.output {
+      color: #9cdcfe;
+      background: #1a1a1a;
+      resize: none;
+    }
+
+    .status-bar {
+      font-family: sans-serif;
+      font-size: 12px;
+      color: #777;
+      padding: 2px 0;
+      min-height: 1.4em;
+    }
+    .status-bar.ok  { color: #6a9955; }
+    .status-bar.err { color: #f48771; }
+  </style>
+</head>
+<body>
+  <div class="root">
+    <div class="toolbar">
+      <h1>Sine Table Generator</h1>
+      <button class="clear-btn" onclick="clearOutputs()">Clear outputs</button>
+      <button class="run-btn" onclick="runCode()">&#9654; Run</button>
+    </div>
+
+    <div class="panels">
+      <div class="panel panel-full">
+        <div class="panel-label">Source — JavaScript (editable)</div>
+        <textarea id="code" spellcheck="false">
+function generateSineTable(filename, valueCount) {
+  valueCount = valueCount || 256;
+
+  let fileOutput = "";
+  let consoleOutput = "";
+
+  consoleOutput += " This program creates a table of sine values \n";
+  consoleOutput += " Written by Rue Mohr 2003 \n";
+  consoleOutput += " 256 Degrees, 8 bit values 0 - 255 \n";
+
+  for (let t = 0; t < valueCount; t++) {
+    const tb = t * (Math.PI / (valueCount / 2));
+    const value = Math.trunc(128 + (Math.sin(tb) * 128));
+
+    if (t % 8 === 0) {
+      consoleOutput += "\n DB ";
+      fileOutput   += "\n DB ";
+    } else {
+      fileOutput += ", ";
+    }
+
+    consoleOutput += " " + String(value).padStart(4) + "  ";
+    fileOutput    += " " + value + " ";
+  }
+
+  consoleOutput += "\n";
+  fileOutput    += "\n";
+
+  return { fileOutput, consoleOutput };
+}
+
+const result = generateSineTable("sine_table.asm");
+output(result.fileOutput);
+console_out(result.consoleOutput);
+</textarea>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label">
+          <span>File output — sine_table.asm</span>
+          <button class="dl-btn" id="dl-file" onclick="downloadOutput('file-out', 'sine_table.asm')" disabled>&#8595; Download</button>
+        </div>
+        <textarea id="file-out" class="output" readonly placeholder="File output will appear here after Run…"></textarea>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label">
+          <span>Console / printf output</span>
+          <button class="dl-btn" id="dl-console" onclick="downloadOutput('console-out', 'console.txt')" disabled>&#8595; Download</button>
+        </div>
+        <textarea id="console-out" class="output" readonly placeholder="Console output will appear here after Run…"></textarea>
+      </div>
+    </div>
+
+    <div class="status-bar" id="status"></div>
+  </div>
+
+  <script>
+    function downloadOutput(id, filename) {
+      const text = document.getElementById(id).value;
+      if (!text) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    function output(text) {
+      document.getElementById("file-out").value += text;
+    }
+    function console_out(text) {
+      document.getElementById("console-out").value += text;
+    }
+    function clearOutputs() {
+      document.getElementById("file-out").value = "";
+      document.getElementById("console-out").value = "";
+      document.getElementById("dl-file").disabled = true;
+      document.getElementById("dl-console").disabled = true;
+      const s = document.getElementById("status");
+      s.textContent = "";
+      s.className = "status-bar";
+    }
+    function runCode() {
+      clearOutputs();
+      const code = document.getElementById("code").value;
+      const status = document.getElementById("status");
+      try {
+        const fn = new Function("output", "console_out", code);
+        fn(output, console_out);
+        document.getElementById("dl-file").disabled = !document.getElementById("file-out").value;
+        document.getElementById("dl-console").disabled = !document.getElementById("console-out").value;
+        status.textContent = "Ran successfully.";
+        status.className = "status-bar ok";
+      } catch(e) {
+        status.textContent = "Error: " + e.message;
+        status.className = "status-bar err";
+      }
+    }
+    runCode();
+  </script>
+</body>
+</html>
